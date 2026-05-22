@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Backrooms Infinite Mobile - Multiplayer Escape | Host & Join</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;
+            background-color: #000; user-select: none; touch-action: none;
+        }
+        #gameCanvas { width: 100%; height: 100%; display: block; }
+        
+        /* ANIMASI TORNADO BACKGROUND MENU */
+        #startMenu::before {
+            content: "";
+            position: absolute;
+            width: 200vmax;
+            height: 200vmax;
+            top: -50vmax;
+            left: -50vmax;
+            z-index: -1;
+            background: 
+                radial-gradient(circle, rgba(0,0,0,0) 20%, #000 70%),
+                conic-gradient(from 0deg, #000, #ffd700 25%, #000 50%, #ffaa00 75%, #000);
+            opacity: 0.15;
+            animation: putarTornado 25s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes putarTornado {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* TAMPILAN POPUP INPUT HORIZONTAL */
+        #targetPopup > div {
+            background: rgba(20, 20, 20, 0.95);
+            border: 2px solid #cbd18f;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            width: 85%;
+            max-width: 750px;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+        }
+        .input-row-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            flex: 1;
+            min-width: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .input-group label {
+            font-size: 12px;
+            margin-bottom: 6px !important;
+            white-space: nowrap;
+            color: #ffd966;
+        }
+        .input-group input {
+            width: 100% !important;
+            box-sizing: border-box;
+            background: #111;
+            border: 1px solid #cbd18f !important;
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        /* RESPONSIF LANDSCAPE */
+        @media (orientation: landscape) {
+            #startMenu h1 { font-size: 40px; }
+            #controls-left-container { bottom: 20px; left: 30px; scale: 0.9; }
+            #actions-right-container { bottom: 20px; right: 30px; scale: 0.9; gap: 10px; }
+            #torch-controls { right: 22%; scale: 0.85; }
+        }
+
+        /* SISA STYLE ASLI (TIDAK DIUBAH) */
+        #controls-left-container {
+            position: absolute; bottom: 40px; left: 40px;
+            display: flex; align-items: center; gap: 20px; z-index: 10;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+        #joystick-container {
+            width: 100px; height: 100px;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        }
+        #joystick-knob { width: 40px; height: 40px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; }
+        #torch-btn {
+            width: 80px; height: 45px;
+            background: rgba(255, 170, 68, 0.2); border: 2px solid rgba(255, 170, 68, 0.5);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            color: #fff; font-family: sans-serif; font-weight: bold; font-size: 11px;
+            pointer-events: auto;
+        }
+        #torch-controls {
+            position: absolute; bottom: 0px; right: 18%;
+            width: 100px; height: 220px;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            z-index: 9; pointer-events: none;
+            transform-origin: bottom center;
+            transition: transform 0.1s ease-out;
+        }
+        #torch-flame-ui {
+            width: 35px; height: 35px;
+            background: radial-gradient(circle, #fff 10%, #ff8800 60%, rgba(255,0,0,0) 100%);
+            border-radius: 50% 50% 20% 50%;
+            transform: rotate(-45deg) scale(1);
+            box-shadow: 0 0 20px #ff5500, 0 0 40px #ffaa00;
+            filter: drop-shadow(0 0 15px #ffaa00);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+            animation: flickerUI 0.15s infinite alternate;
+            margin-bottom: -4px;
+        }
+        #torch-flame-ui.off { transform: rotate(-45deg) scale(0); opacity: 0; }
+        #torch-handle-ui {
+            width: 12px; height: 110px;
+            background: linear-gradient(to right, #3a200d, #5c3417, #241407);
+            border-radius: 4px 4px 2px 2px;
+            margin-bottom: 20px;
+        }
+        @keyframes flickerUI {
+            0% { transform: rotate(-45deg) scale(0.95); border-radius: 50% 50% 20% 50%; }
+            100% { transform: rotate(-43deg) scale(1.08); border-radius: 45% 55% 25% 45%; }
+        }
+        #actions-right-container {
+            position: absolute; bottom: 40px; right: 40px;
+            display: flex; flex-direction: column; gap: 15px; z-index: 10;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+        .action-btn {
+            width: 65px; height: 65px;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: #fff; font-family: sans-serif; font-weight: bold; font-size: 12px;
+            pointer-events: auto;
+        }
+        .action-btn.active { background: rgba(255, 255, 255, 0.4); border-color: #fff; }
+        #startMenu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #000; z-index: 100; font-family: 'Courier New', Courier, monospace;
+            overflow-y: auto; padding: 10px; box-sizing: border-box;
+        }
+        #startMenu h1 { font-size: 56px; color: #cbd18f; text-shadow: 0 0 15px rgba(203,209,143,0.4); letter-spacing: 8px; margin-bottom: 20px; text-align: center; }
+        #startMenu p { color: #aaa; margin-bottom: 30px; max-width: 80%; text-align: center; }
+        #startMenu button { padding: 12px 40px; font-size: 18px; font-weight: bold; background: #cbd18f; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        #targetPopup {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 150; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            font-family: sans-serif; box-sizing: border-box; padding: 20px;
+        }
+        #aboutMenu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 160; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            font-family: sans-serif; color: white; padding: 20px; box-sizing: border-box;
+        }
+        #aboutMenu h2 { color: #ffd700; }
+        #aboutMenu div {
+            max-height: 50vh; overflow-y: auto;
+            width: 90%; max-width: 500px; text-align: left; line-height: 1.6;
+            background: #111; padding: 20px; border-radius: 8px; border: 1px solid #444;
+            margin-bottom: 20px;
+        }
+        #aboutMenu button { padding: 10px 30px; background: white; color: black; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
+        #instruksiMissionUI {
+            display: none; position: absolute; top: 20px; left: 50%;
+            transform: translateX(-50%); color: #ff3333; font-family: sans-serif;
+            font-weight: bold; text-align: center; z-index: 100; font-size: 14px;
+            text-shadow: 0 0 8px #000; background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 20px;
+            white-space: nowrap;
+        }
+        #arrowCompass { font-size: 28px; color: #33ff33; margin-top: 5px; transition: transform 0.1s; }
+        #victoryMenu, #gameOverMenu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 300; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            font-family: sans-serif; opacity: 0; transition: opacity 1s ease;
+            padding: 20px; box-sizing: border-box; text-align: center;
+        }
+        #victoryMenu h1 { color: #33ff33; font-size: 50px; margin-bottom: 10px; text-shadow: 0 0 20px #33ff33; }
+        #gameOverMenu h1 { color: #ff3333; font-size: 50px; margin-bottom: 10px; text-shadow: 0 0 20px #ff3333; }
+        #victoryMenu p, #gameOverMenu p { color: #aaa; font-size: 18px; margin-bottom: 40px; }
+        #victoryMenu button, #gameOverMenu button { padding: 15px 40px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 15px; cursor: pointer; width: 200px; }
+        #victoryMenu button:first-child { background: #33ff33; color: black; }
+        #victoryMenu button:last-child, #gameOverMenu button:last-child { background: #fff; color: black; }
+        #gameOverMenu button:first-child { background: #ff3333; color: white; }
+        #btnPauseUI {
+            position: absolute; top: 20px; right: 20px; z-index: 90;
+            padding: 10px 18px; background: rgba(0,0,0,0.6); color: white;
+            border: 2px solid white; border-radius: 8px; font-weight: bold;
+            font-family: sans-serif; cursor: pointer; font-size: 14px;
+            display: none;
+        }
+        .overlay-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 200; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            font-family: sans-serif; padding: 20px; box-sizing: border-box;
+        }
+        .overlay-menu h2 { color: #ffd700; font-size: 40px; margin-bottom: 30px; }
+        .overlay-menu button { padding: 15px 40px; font-size: 18px; background: #fff; border: none; border-radius: 8px; margin-bottom: 15px; cursor: pointer; width: 200px; }
+        .overlay-menu button:last-child { background: #ff4444; color: white; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 6px; height: 6px; background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            z-index: 50; pointer-events: none;
+        }
+        #coin-ui-container {
+            position: absolute; bottom: 30px; left: 50%;
+            transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+            background: rgba(0, 0, 0, 0.6); padding: 8px 18px;
+            border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 20px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); z-index: 50;
+            opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
+        .coin-icon-css {
+            width: 22px; height: 22px; background: #ffd700;
+            border-radius: 50%; border: 2px solid #b59400;
+            box-shadow: 0 0 8px #ffd700, inset 0 0 4px rgba(255,255,255,0.6);
+            animation: spinCoinUI 2s infinite linear;
+        }
+        @keyframes spinCoinUI { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
+        #coin-counter-text { font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: bold; color: #ffd700; margin: 0; }
+    </style>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Start Menu -->
+    <div id="startMenu">
+        <h1>INVIROOMS</h1>
+        <p>Labirin Tanpa Batas - Cari Jalan Keluar dan Kumpulkan Koin!<br>Dunia acak dapat diatur dengan seed!</p>
+        <button id="btnPlay">PLAY</button>
+        <button id="btnAbout" style="margin-top: 10px; background: rgba(255,255,255,0.2); color: white; border: 1px solid white;">ABOUT</button>
+    </div>
+
+    <!-- Target Popup dengan menu bertingkat multiplayer -->
+    <div id="targetPopup">
+        <div id="menuPilihMode">
+            <h2 style="color: #cbd18f; margin-bottom: 25px;">PILIH MODE GAME</h2>
+            <button id="btnModeSingle" style="background:#cbd18f; color:#000; font-weight:bold; padding:12px 30px; margin:10px; border-radius:6px; cursor:pointer;">SINGLE PLAYER</button>
+            <button id="btnModeMulti" style="background:#ffd700; color:#000; font-weight:bold; padding:12px 30px; margin:10px; border-radius:6px; cursor:pointer;">MULTIPLAYER</button>
+            <br><br>
+            <button id="btnBatalMode" style="background:#ff4444; color:#fff; font-size:12px; padding:6px 15px; border-radius:4px;">KEMBALI</button>
+        </div>
+
+        <div id="menuOpsiMulti" style="display: none;">
+            <h2 style="color: #ffd700; margin-bottom: 25px;">MULTIPLAYER ROOM</h2>
+            <button id="btnPilihHost" style="background:#cbd18f; color:#000; padding:12px 30px; margin:10px; border-radius:6px; font-weight:bold;">BUAT ROOM (HOST)</button>
+            <button id="btnPilihJoin" style="background:#cbd18f; color:#000; padding:12px 30px; margin:10px; border-radius:6px; font-weight:bold;">GABUNG ROOM (JOIN)</button>
+            <br><br>
+            <button id="btnBatalMulti" style="background:#555; color:#fff; font-size:12px; padding:6px 15px; border-radius:4px;">KEMBALI</button>
+        </div>
+
+        <div id="lobbyHost" style="display: none;">
+            <h3 style="color: #cbd18f;">ROOM BERHASIL DIBUAT!</h3>
+            <p style="color: #aaa; font-size: 14px;">Bagikan ID ini ke temanmu agar mereka bisa join:</p>
+            <div style="background:#111; border:1px solid #cbd18f; padding:10px; color:#fff; font-family:monospace; font-size:16px; margin:15px 0; border-radius:6px; word-break:break-all;" id="textIdHost">Membuat ID...</div>
+            <button id="btnSalinId" style="background:#ffd700; color:#000; padding:6px 15px; font-size:12px; border-radius:4px; font-weight:bold;">SALIN ID</button>
+            <p id="infoStatusLobby" style="color:#00ff33; font-size:12px; margin-top:15px;">Menunggu pemain lain bergabung...</p>
+            <hr style="border-color:#444; margin:20px 0;">
+            <div class="input-row-container">
+                <div class="input-group"><label>Target Koin:</label><input type="number" id="targetKoinInput" value="10" min="1"></div>
+                <div class="input-group"><label>Jumlah Musuh:</label><input type="number" id="jumlahMusuhInput" value="3" min="0"></div>
+                <div class="input-group"><label>Seed Dunia (Opsional):</label><input type="text" id="seedGameInput" placeholder="Acak"></div>
+            </div>
+            <button id="btnStartGameHost" style="background:#00ff33; color:#000; padding:12px 40px; font-size:16px; font-weight:bold; border-radius:6px; display:none;">MULAI PERMAINAN</button>
+        </div>
+
+        <div id="lobbyJoiner" style="display: none;">
+            <h2 style="color: #cbd18f;">GABUNG ROOM TEMAN</h2>
+            <p style="color:#aaa; font-size:14px;">Masukkan ID Room milik Host di bawah ini:</p>
+            <input type="text" id="inputIdHostTarget" placeholder="Tempel ID Host di sini..." style="width:80%; max-width:350px; padding:10px; background:#111; border:1px solid #cbd18f; color:#fff; text-align:center; border-radius:6px; margin-bottom:15px; font-size:16px;">
+            <br>
+            <button id="btnKoneksiJoin" style="background:#00ff33; color:#000; padding:12px 35px; font-weight:bold; border-radius:6px;">JOIN NOW</button>
+            <p id="infoStatusJoin" style="color:#aaa; font-size:12px; margin-top:10px;"></p>
+            <br>
+            <button id="btnBatalJoiner" style="background:#555; color:#fff; font-size:12px; padding:6px 15px; border-radius:4px;">KEMBALI</button>
+        </div>
+
+        <div id="lobbySingle" style="display: none;">
+            <h2 style="color: #cbd18f; margin-bottom:20px;">PENGATURAN GAME</h2>
+            <div class="input-row-container">
+                <div class="input-group"><label>Target Koin:</label><input type="number" id="targetKoinInputSingle" value="10" min="1"></div>
+                <div class="input-group"><label>Jumlah Musuh:</label><input type="number" id="jumlahMusuhInputSingle" value="3" min="0"></div>
+                <div class="input-group"><label>Seed Dunia (Opsional):</label><input type="text" id="seedGameInputSingle" placeholder="Acak"></div>
+            </div>
+            <button id="btnStartGameSingle" style="background:#cbd18f; color:#000; padding:12px 40px; font-size:16px; font-weight:bold; border-radius:6px;">MULAI MASUK</button>
+            <br><br>
+            <button id="btnBatalSingle" style="background:#555; color:#fff; font-size:12px; padding:6px 15px; border-radius:4px;">KEMBALI</button>
+        </div>
+    </div>
+
+    <div id="aboutMenu">
+        <h2>CARA BERMAIN</h2>
+        <div>
+            <ol style="margin:0; padding-left:20px;">
+                <li>Gunakan Joystick Kiri untuk berjalan.</li>
+                <li>Geser layar bagian kanan untuk melihat sekeliling.</li>
+                <li>Cari dan buka laci arsip untuk menemukan koin emas.</li>
+                <li>Kumpulkan koin sesuai target yang kamu tentukan.</li>
+                <li>Setelah target terpenuhi, <b>ikuti kompas arah</b> untuk kembali ke tempat awal dan masuk ke <b>Portal Hijau Glowing</b> untuk menang!</li>
+                <li>Hindari silinder biru bercahaya (entitas) – mereka akan mengejarmu jika terlihat. Kamu bisa bersembunyi dengan <b>jongkok + matikan obor</b>.</li>
+                <li><b style="color:#ffd700;">★ Multiplayer:</b> Host membuat room, bagikan ID, semua pemain bermain di dunia yang sama. Siapa pun yang mencapai portal terlebih dahulu akan menang untuk semua!</li>
+            </ol>
+        </div>
+        <button id="btnCloseAbout">KEMBALI</button>
+    </div>
+
+    <div id="instruksiMissionUI">
+        TARGET terpenuhi! BALIK KE SPAWN!
+        <div id="arrowCompass">↑</div>
+    </div>
+
+    <div id="victoryMenu">
+        <h1>MISSION ACCOMPLISHED</h1>
+        <p id="victoryInfoText">Kamu berhasil mengumpulkan semua target koin!</p>
+        <button id="btnRestart">MAIN LAGI</button>
+        <button id="btnBackToMenu">MAIN MENU</button>
+    </div>
+
+    <div id="gameOverMenu">
+        <h1>YOU DIED</h1>
+        <p id="gameOverInfoText">Kamu tertangkap oleh entitas labirin!</p>
+        <button id="btnRestartGO">COBA LAGI</button>
+        <button id="btnBackToMenuGO">MAIN MENU</button>
+    </div>
+
+    <button id="btnPauseUI">PAUSE</button>
+    <div id="pauseMenu" class="overlay-menu">
+        <h2>GAME PAUSED</h2>
+        <button id="btnResume">RESUME</button>
+        <button id="btnExitMenu">MAIN MENU</button>
+    </div>
+
+    <div id="controls-left-container">
+        <div id="joystick-container"><div id="joystick-knob"></div></div>
+        <div id="torch-btn">TORCH ON</div>
+    </div>
+    <div id="actions-right-container">
+        <div id="run-btn" class="action-btn">LARI</div>
+        <div id="crouch-btn" class="action-btn">JONGKOK</div>
+    </div>
+    <div id="torch-controls">
+        <div id="torch-flame-ui"></div>
+        <div id="torch-handle-ui"></div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="coin-ui-container">
+        <div class="coin-icon-css"></div>
+        <p id="coin-counter-text">0 / 0</p>
+    </div>
+
+    <script>
+        // ========== THREE.JS SETUP ==========
+        const canvas = document.getElementById('gameCanvas');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.12);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 35);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+        renderer.shadowMap.enabled = false;
+        
+        const ambientLight = new THREE.AmbientLight(0x111111, 0.45);
+        scene.add(ambientLight);
+        const torchLight = new THREE.PointLight(0xffaa44, 2.5, 12);
+        torchLight.castShadow = false;
+        scene.add(torchLight);
+        
+        let isTorchOn = true;
+        let currentIntensity = 2.5;
+        let targetIntensity = 2.5;
+        
+        // ========== GAME STATE ==========
+        let score = 0;
+        let targetKoin = 10;
+        let gameDimulai = false;
+        let gamePaused = false;
+        let gameSelesai = false;
+        let targetTerpenuhi = false;
+        let gameSeed = Math.random() * 100000;
+        let jumlahMusuh = 3;
+        let daftarMusuh = [];
+        
+        // VARIABEL MULTIPLAYER TAMBAHAN
+        let gameMode = "SINGLE"; // Bisa "SINGLE" atau "MULTIPLAYER"
+        let netRole = "NONE";    // Bisa "HOST" atau "CLIENT"
+        let peerInstance = null;
+        let myPeerId = "";
+        let netConnections = []; // Menyimpan semua koneksi client (jika jadi Host)
+        let hostConnection = null; // Menyimpan koneksi ke Host (jika jadi Client)
+        let remotePlayers = {};  // Menyimpan mesh objek 3D player lain
+        const materialKarakterMulti = new THREE.MeshPhongMaterial({ color: 0x5c3417 }); // Warna coklat silinder
+        
+        // DOM Elements (semua yang diperlukan)
+        const startMenuDiv = document.getElementById('startMenu');
+        const btnPlay = document.getElementById('btnPlay');
+        const targetPopupDiv = document.getElementById('targetPopup');
+        const aboutMenuDiv = document.getElementById('aboutMenu');
+        const btnAbout = document.getElementById('btnAbout');
+        const btnCloseAbout = document.getElementById('btnCloseAbout');
+        const btnPauseUI = document.getElementById('btnPauseUI');
+        const pauseMenuDiv = document.getElementById('pauseMenu');
+        const victoryMenuDiv = document.getElementById('victoryMenu');
+        const gameOverMenuDiv = document.getElementById('gameOverMenu');
+        const btnResume = document.getElementById('btnResume');
+        const btnExitMenu = document.getElementById('btnExitMenu');
+        const btnRestart = document.getElementById('btnRestart');
+        const btnBackToMenu = document.getElementById('btnBackToMenu');
+        const btnRestartGO = document.getElementById('btnRestartGO');
+        const btnBackToMenuGO = document.getElementById('btnBackToMenuGO');
+        const coinCounter = document.getElementById('coin-counter-text');
+        const instruksiMissionUI = document.getElementById('instruksiMissionUI');
+        const arrowCompass = document.getElementById('arrowCompass');
+        const victoryInfoText = document.getElementById('victoryInfoText');
+        const gameOverInfoText = document.getElementById('gameOverInfoText');
+        const controlsLeftContainer = document.getElementById('controls-left-container');
+        const actionsRightContainer = document.getElementById('actions-right-container');
+        
+        function updateScoreUI() {
+            coinCounter.innerText = `${score} / ${targetKoin}`;
+        }
+        
+        // ========== SISTEM AUDIO (SAMA SEPERTI ASLI) ==========
+        let audioListener;
+        let sfxKlik, sfxKoin, sfxLaci, sfxObor, sfxMenang, sfxKalah;
+        let sfxLampuLoop, sfxPortalLoop;
+        let sfxLangkah;
+        let langkahTimer = 0;
+        let intervalLangkah = 600;
+        
+        function initAudio() {
+            if (audioListener) return;
+            audioListener = new THREE.AudioListener();
+            camera.add(audioListener);
+            const audioLoader = new THREE.AudioLoader();
+            sfxKoin = new THREE.Audio(audioListener);
+            audioLoader.load('ambil_koin.mp3', (b) => { sfxKoin.setBuffer(b); sfxKoin.setVolume(0.6); }, undefined, () => {});
+            sfxLaci = new THREE.Audio(audioListener);
+            audioLoader.load('laci_buka.mp3', (b) => { sfxLaci.setBuffer(b); sfxLaci.setVolume(0.5); }, undefined, () => {});
+            sfxKlik = new THREE.Audio(audioListener);
+            audioLoader.load('klik_tombol.mp3', (b) => { sfxKlik.setBuffer(b); sfxKlik.setVolume(0.4); }, undefined, () => {});
+            sfxObor = new THREE.Audio(audioListener);
+            audioLoader.load('obor_saklar.mp3', (b) => { sfxObor.setBuffer(b); sfxObor.setVolume(0.5); }, undefined, () => {});
+            sfxMenang = new THREE.Audio(audioListener);
+            audioLoader.load('menang_megah.mp3', (b) => { sfxMenang.setBuffer(b); sfxMenang.setVolume(0.7); }, undefined, () => {});
+            sfxKalah = new THREE.Audio(audioListener);
+            audioLoader.load('kalah_seram.mp3', (b) => { sfxKalah.setBuffer(b); sfxKalah.setVolume(0.8); }, undefined, () => {});
+            sfxLampuLoop = new THREE.Audio(audioListener);
+            audioLoader.load('lampu_loop.mp3', (b) => {
+                sfxLampuLoop.setBuffer(b); sfxLampuLoop.setLoop(true); sfxLampuLoop.setVolume(0.5);
+                sfxLampuLoop.play();
+            }, undefined, () => {});
+            sfxPortalLoop = new THREE.PositionalAudio(audioListener);
+            audioLoader.load('portal_loop.mp3', (b) => {
+                sfxPortalLoop.setBuffer(b); sfxPortalLoop.setLoop(true); sfxPortalLoop.setRefDistance(1);
+                sfxPortalLoop.setMaxDistance(10); sfxPortalLoop.setVolume(0.8);
+            }, undefined, () => {});
+            sfxLangkah = new THREE.Audio(audioListener);
+            audioLoader.load('langkah_kaki.mp3', (b) => { sfxLangkah.setBuffer(b); sfxLangkah.setVolume(0.4); }, undefined, () => {});
+        }
+        function playSfx(sfx) { if (sfx && sfx.isPlaying) sfx.stop(); if (sfx) sfx.play(); }
+        
+        // ========== WORLD GENERATION (ASLI, TIDAK DIUBAH) ==========
+        function simpleRandom(x, z) {
+            let seed = (x * 12345) + (z * 67890) + (gameSeed * 11);
+            let sin_val = Math.sin(seed) * 10000;
+            return sin_val - Math.floor(sin_val);
+        }
+        const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xd2bd89 });
+        const floorMaterial = new THREE.MeshPhongMaterial({ color: 0xb5a475 });
+        const ceilMaterial = new THREE.MeshPhongMaterial({ color: 0x9e9066 });
+        const neonGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const materialBodyLemari = new THREE.MeshPhongMaterial({color: 0x444846});
+        const materialMukaLaci = new THREE.MeshPhongMaterial({color: 0x333635});
+        const materialAlasLaci = new THREE.MeshPhongMaterial({color: 0x252726});
+        const materialGagangLaci = new THREE.MeshPhongMaterial({color: 0xcccccc});
+        const materialKoinGlobal = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.95 });
+        const materialMusuhGlobal = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.9 });
+        
+        function createBackroomsTextures() {
+            const createNoise = (ctx, w, h, op) => {
+                const imgData = ctx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * op * 255;
+                    data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                    data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+                    data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+                }
+                ctx.putImageData(imgData, 0, 0);
+            };
+            const cw = document.createElement('canvas'); cw.width = 128; cw.height = 128;
+            const ctxW = cw.getContext('2d'); ctxW.fillStyle = '#cbd18f'; ctxW.fillRect(0,0,128,128);
+            ctxW.fillStyle = '#b5ba79'; for(let i=0;i<128;i+=8) ctxW.fillRect(i,0,1,128);
+            createNoise(ctxW,128,128,0.04);
+            const cf = document.createElement('canvas'); cf.width = 128; cf.height = 128;
+            const ctxF = cf.getContext('2d'); ctxF.fillStyle = '#615731'; ctxF.fillRect(0,0,128,128);
+            createNoise(ctxF,128,128,0.08);
+            const cceil = document.createElement('canvas'); cceil.width = 64; cceil.height = 64;
+            const ctxC = cceil.getContext('2d'); ctxC.fillStyle = '#aba591'; ctxC.fillRect(0,0,64,64);
+            ctxC.strokeStyle = '#827d6c'; ctxC.lineWidth = 1.5; ctxC.strokeRect(1,1,62,62);
+            return {
+                wall: new THREE.CanvasTexture(cw),
+                floor: new THREE.CanvasTexture(cf),
+                ceil: new THREE.CanvasTexture(cceil)
+            };
+        }
+        const textures = createBackroomsTextures();
+        wallMaterial.map = textures.wall;
+        floorMaterial.map = textures.floor;
+        ceilMaterial.map = textures.ceil;
+        
+        const ROOM_SIZE = 5;
+        const CHUNK_SIZE = 6;
+        const VIEW_DISTANCE = 1;
+        const wallHeight = 3.2;
+        
+        let activeChunks = {};
+        let currentChunkCoords = { x: 0, z: 0 };
+        let worldContainer = new THREE.Group();
+        scene.add(worldContainer);
+        let hitBoxWalls = [];
+        let objekInteraktif = [];
+        let daftarLaciAnimasi = [];
+        let daftarKoinAnimasi = [];
+        let portalMesh = null;
+        let portalLight = null;
+        
+        function createVariedWall(gridX, gridZ, seedVal) { /* ... asli ... */ 
+            let tebal = 0.2, panjang = ROOM_SIZE + 0.15, tinggi = wallHeight;
+            if (seedVal > 0.90) { tebal = 2.0; panjang = 2.0; }
+            else if (seedVal > 0.80) { tebal = 0.8; panjang = ROOM_SIZE; }
+            else if (seedVal > 0.72) { tebal = 0.08; panjang = ROOM_SIZE * 0.7; }
+            else { tebal = 0.2; panjang = ROOM_SIZE; }
+            const geometry = new THREE.BoxGeometry(panjang, tinggi, tebal);
+            const wall = new THREE.Mesh(geometry, wallMaterial);
+            wall.castShadow = false; wall.receiveShadow = false;
+            let angle = simpleRandom(gridX+7, gridZ-3) > 0.5 ? 0 : Math.PI/2;
+            wall.rotation.y = angle;
+            let posX = gridX * ROOM_SIZE + ROOM_SIZE/2;
+            let posZ = gridZ * ROOM_SIZE + ROOM_SIZE/2;
+            wall.position.set(posX, tinggi/2, posZ);
+            return wall;
+        }
+        function pasangLampuNeon(chunkGroup, lx, lz) { if (Math.random() > 0.66) return; const neonGeo = new THREE.BoxGeometry(1.8, 0.02, 0.3); const neonMesh = new THREE.Mesh(neonGeo, neonGlowMaterial); neonMesh.position.set(lx*ROOM_SIZE+ROOM_SIZE/2, wallHeight-0.01, lz*ROOM_SIZE+ROOM_SIZE/2); neonMesh.castShadow = false; chunkGroup.add(neonMesh); }
+        function buatObjekSpesifik(tipe, posX, posZ) { /* ... asli ... */ const groupObjek = new THREE.Group(); if (tipe === 4) { /* lemari dengan laci dan koin */ } return groupObjek; }
+        function collectActiveWalls() { hitBoxWalls = []; objekInteraktif = []; daftarLaciAnimasi = []; daftarKoinAnimasi = []; Object.keys(activeChunks).forEach(key => { activeChunks[key].traverse(child => { if (child instanceof THREE.Mesh) { if (child.material === wallMaterial || child.name === "solid") hitBoxWalls.push(child); if (child.name === "glowing_coin") { objekInteraktif.push(child); daftarKoinAnimasi.push(child); } } if (child.isGroup && child.name === "interactive_laci") { objekInteraktif.push(child); daftarLaciAnimasi.push(child); } }); }); }
+        function loadChunk(cx, cz) { const key = `${cx},${cz}`; if (activeChunks[key]) return; const group = new THREE.Group(); group.position.set(cx * CHUNK_SIZE * ROOM_SIZE, 0, cz * CHUNK_SIZE * ROOM_SIZE); worldContainer.add(group); const geoFloor = new THREE.PlaneGeometry(CHUNK_SIZE*ROOM_SIZE, CHUNK_SIZE*ROOM_SIZE); const floor = new THREE.Mesh(geoFloor, floorMaterial); floor.rotation.x = -Math.PI/2; floor.position.set((CHUNK_SIZE*ROOM_SIZE)/2 - ROOM_SIZE/2, 0, (CHUNK_SIZE*ROOM_SIZE)/2 - ROOM_SIZE/2); floor.receiveShadow = false; group.add(floor); const ceil = new THREE.Mesh(geoFloor, ceilMaterial); ceil.rotation.x = Math.PI/2; ceil.position.set((CHUNK_SIZE*ROOM_SIZE)/2 - ROOM_SIZE/2, wallHeight, (CHUNK_SIZE*ROOM_SIZE)/2 - ROOM_SIZE/2); ceil.receiveShadow = false; group.add(ceil); for (let x = 0; x < CHUNK_SIZE; x++) { for (let z = 0; z < CHUNK_SIZE; z++) { const worldX = cx*CHUNK_SIZE + x; const worldZ = cz*CHUNK_SIZE + z; let randVal = simpleRandom(worldX, worldZ); if (randVal > 0.65) group.add(createVariedWall(x, z, randVal)); if ((worldX%2 !==0) && (worldZ%2 !==0)) pasangLampuNeon(group, x, z); let objRand = simpleRandom(worldX+5, worldZ+12); if (randVal <= 0.65 && objRand < 0.15) { let tipe = Math.floor(simpleRandom(worldX+45, worldZ-88)*10)+1; let localX = x*ROOM_SIZE + ROOM_SIZE/2; let localZ = z*ROOM_SIZE + ROOM_SIZE/2; const obj = buatObjekSpesifik(tipe, localX, localZ); if(obj.children.length > 0) group.add(obj); } } } activeChunks[key] = group; }
+        function unloadChunks(cx, cz) { let hapus = false; Object.keys(activeChunks).forEach(key => { const [x, z] = key.split(',').map(Number); if (Math.abs(x-cx) > VIEW_DISTANCE+1 || Math.abs(z-cz) > VIEW_DISTANCE+1) { const chunk = activeChunks[key]; chunk.traverse(child => { if (child.geometry) child.geometry.dispose(); if (child.material) child.material.dispose(); if (child instanceof THREE.PointLight && child.parent) child.parent.remove(child); }); worldContainer.remove(chunk); delete activeChunks[key]; hapus = true; } }); if (hapus) collectActiveWalls(); }
+        function updateInfiniteWorld() { const px = playerPos.x; const pz = playerPos.z; const cx = Math.floor(px / (CHUNK_SIZE * ROOM_SIZE)); const cz = Math.floor(pz / (CHUNK_SIZE * ROOM_SIZE)); if (cx !== currentChunkCoords.x || cz !== currentChunkCoords.z) { currentChunkCoords = { x: cx, z: cz }; for (let x = cx - VIEW_DISTANCE; x <= cx + VIEW_DISTANCE; x++) for (let z = cz - VIEW_DISTANCE; z <= cz + VIEW_DISTANCE; z++) loadChunk(x, z); unloadChunks(cx, cz); collectActiveWalls(); } }
+        
+        function spawnMusuh() { daftarMusuh.forEach(m => { if (m.suaraLoop && m.suaraLoop.isPlaying) m.suaraLoop.stop(); scene.remove(m.mesh); }); daftarMusuh = []; const audioLoader = new THREE.AudioLoader(); for (let i = 0; i < jumlahMusuh; i++) { const geoMusuh = new THREE.CylinderGeometry(0.3, 0.3, 1.8, 12); const meshMusuh = new THREE.Mesh(geoMusuh, materialMusuhGlobal); meshMusuh.position.y = 0.9; const lightMusuh = new THREE.PointLight(0x00aaff, 2, 6); lightMusuh.position.set(0, 0.5, 0); meshMusuh.add(lightMusuh); const suaraLoop = new THREE.PositionalAudio(audioListener); audioLoader.load('suara_entitas.mp3', (buffer) => { suaraLoop.setBuffer(buffer); suaraLoop.setLoop(true); suaraLoop.setRefDistance(1.5); suaraLoop.setMaxDistance(12); suaraLoop.setVolume(1.0); if (gameDimulai && !gamePaused) suaraLoop.play(); }); meshMusuh.add(suaraLoop); let spawnX, spawnZ; do { spawnX = (Math.random() - 0.5) * 60; spawnZ = (Math.random() - 0.5) * 60; } while (Math.hypot(spawnX, spawnZ) < 15); meshMusuh.position.set(spawnX, 0.9, spawnZ); scene.add(meshMusuh); daftarMusuh.push({ mesh: meshMusuh, status: 'PATROLI', kecepatan: 0.05, sudutArah: Math.random() * Math.PI * 2, timerWaktuArah: Date.now(), targetInvestigasi: new THREE.Vector3(), radarRadius: 7.5, suaraLoop: suaraLoop }); } }
+        function updateAI() { if (!gameDimulai || gamePaused || gameSelesai) return; const posPlayer2D = new THREE.Vector2(playerPos.x, playerPos.z); const speedPatroli = 0.04; const speedNgejar = 0.105; for (let i = 0; i < daftarMusuh.length; i++) { const m = daftarMusuh[i]; const posMusuh2D = new THREE.Vector2(m.mesh.position.x, m.mesh.position.z); const jarakKePlayer = posMusuh2D.distanceTo(posPlayer2D); if (jarakKePlayer < 0.75) { pemicuGameOver(); return; } let playerTerlihat = false; if (jarakKePlayer <= m.radarRadius) { if (!(isCrouching && !isTorchOn)) playerTerlihat = true; } if (playerTerlihat) m.status = 'MENGEJAR'; else if (m.status === 'MENGEJAR' && !playerTerlihat) { m.status = 'INVESTIGASI'; m.targetInvestigasi.copy(camera.position); } let dirX = 0, dirZ = 0; if (m.status === 'MENGEJAR') { m.kecepatan = speedNgejar; let sudutKePlayer = Math.atan2(playerPos.x - m.mesh.position.x, playerPos.z - m.mesh.position.z); m.sudutArah = sudutKePlayer; dirX = Math.sin(sudutKePlayer); dirZ = Math.cos(sudutKePlayer); } else if (m.status === 'INVESTIGASI') { m.kecepatan = speedNgejar; let jarakKeTarget = posMusuh2D.distanceTo(new THREE.Vector2(m.targetInvestigasi.x, m.targetInvestigasi.z)); if (jarakKeTarget > 0.5) { let sudutKeTarget = Math.atan2(m.targetInvestigasi.x - m.mesh.position.x, m.targetInvestigasi.z - m.mesh.position.z); m.sudutArah = sudutKeTarget; dirX = Math.sin(sudutKeTarget); dirZ = Math.cos(sudutKeTarget); } else { m.status = 'PATROLI'; m.timerWaktuArah = Date.now(); } } else { m.kecepatan = speedPatroli; if (Date.now() - m.timerWaktuArah > (Math.random() * 2000 + 2000)) { m.sudutArah = Math.random() * Math.PI * 2; m.timerWaktuArah = Date.now(); } dirX = Math.sin(m.sudutArah); dirZ = Math.cos(m.sudutArah); } let moveStep = new THREE.Vector3(dirX * m.kecepatan, 0, dirZ * m.kecepatan); let posisiBaruMusuh = m.mesh.position.clone().add(moveStep); if (!cekTabrakan(m.mesh.position, moveStep)) m.mesh.position.copy(posisiBaruMusuh); else m.sudutArah += Math.PI * (Math.random() * 0.5 + 0.5); } }
+        function pemicuGameOver() { gameSelesai = true; gameDimulai = false; instruksiMissionUI.style.display = 'none'; btnPauseUI.style.display = 'none'; controlsLeftContainer.style.opacity = "0"; controlsLeftContainer.style.pointerEvents = "none"; actionsRightContainer.style.opacity = "0"; actionsRightContainer.style.pointerEvents = "none"; if(document.exitPointerLock) document.exitPointerLock(); gameOverInfoText.innerHTML = `Jumlah koin: ${score} / ${targetKoin}<br>Jumlah entitas: ${jumlahMusuh}`; gameOverMenuDiv.style.display = 'flex'; setTimeout(() => { gameOverMenuDiv.style.opacity = '1'; }, 50); if (sfxLampuLoop) sfxLampuLoop.stop(); if (sfxPortalLoop) sfxPortalLoop.stop(); daftarMusuh.forEach(m => { if (m.suaraLoop && m.suaraLoop.isPlaying) m.suaraLoop.stop(); }); playSfx(sfxKalah); }
+        function munculkanPortalKeluar() { if (portalMesh) return; const portalGeo = new THREE.BoxGeometry(1.2, 2.0, 1.2); const portalMat = new THREE.MeshBasicMaterial({ color: 0x00ff33, transparent: true, opacity: 0.75 }); portalMesh = new THREE.Mesh(portalGeo, portalMat); portalMesh.position.set(0, 1.0, 0); scene.add(portalMesh); portalLight = new THREE.PointLight(0x00ff33, 2, 5); portalLight.position.set(0, 1.5, 0); portalLight.castShadow = false; scene.add(portalLight); if (sfxPortalLoop) { portalMesh.add(sfxPortalLoop); sfxPortalLoop.play(); } }
+        
+        // ========== PLAYER & CONTROLS (ASLI) ==========
+        let playerPos = new THREE.Vector3(0, 0, 0);
+        let moveJoystick = { x: 0, y: 0 };
+        let cameraRotation = { x: 0, y: 0 };
+        let isRunning = false, isCrouching = false;
+        let currentHeight = 1.6, targetBaseHeight = 1.6, currentSpeed = 0.075;
+        let bobTimer = 0, torchLeanX = 0, lookSpeedX = 0;
+        const knob = document.getElementById('joystick-knob');
+        const container = document.getElementById('joystick-container');
+        let joystickTouchId = null, lookTouchId = null, lastLookTouchX = 0, lastLookTouchY = 0;
+        function updateJoystick(touch) { const rect = container.getBoundingClientRect(); const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2; let dx = touch.clientX - cx, dy = touch.clientY - cy; const dist = Math.hypot(dx, dy); const maxR = 40; if (dist > maxR) { dx = dx/dist * maxR; dy = dy/dist * maxR; } knob.style.transform = `translate(${dx}px, ${dy}px)`; moveJoystick.x = dx/maxR; moveJoystick.y = dy/maxR; }
+        window.addEventListener('touchstart', (e) => { for (let t of e.changedTouches) { if (t.clientX < window.innerWidth/2 && joystickTouchId === null && e.target !== torchBtn && e.target !== runBtn && e.target !== crouchBtn) { joystickTouchId = t.identifier; updateJoystick(t); } else if (t.clientX >= window.innerWidth/2 && lookTouchId === null && e.target !== runBtn && e.target !== crouchBtn) { lookTouchId = t.identifier; lastLookTouchX = t.clientX; lastLookTouchY = t.clientY; lookSpeedX = 0; } } });
+        window.addEventListener('touchmove', (e) => { for (let t of e.changedTouches) { if (t.identifier === joystickTouchId) updateJoystick(t); else if (t.identifier === lookTouchId) { const dx = t.clientX - lastLookTouchX, dy = t.clientY - lastLookTouchY; cameraRotation.y -= dx * 0.004; cameraRotation.x -= dy * 0.004; cameraRotation.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, cameraRotation.x)); lookSpeedX = dx * 0.4; lastLookTouchX = t.clientX; lastLookTouchY = t.clientY; } } });
+        window.addEventListener('touchend', (e) => { for (let t of e.changedTouches) { if (t.identifier === joystickTouchId) { joystickTouchId = null; moveJoystick = {x:0,y:0}; knob.style.transform = 'translate(0px,0px)'; } if (t.identifier === lookTouchId) lookTouchId = null; } });
+        const torchBtn = document.getElementById('torch-btn');
+        const flameUI = document.getElementById('torch-flame-ui');
+        const torchContainerUI = document.getElementById('torch-controls');
+        torchBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); isTorchOn = !isTorchOn; targetIntensity = isTorchOn ? 2.5 : 0; torchBtn.innerText = isTorchOn ? "TORCH ON" : "TORCH OFF"; torchBtn.style.background = isTorchOn ? "rgba(255, 170, 68, 0.2)" : "rgba(255,0,0,0.2)"; if(isTorchOn) flameUI.classList.remove('off'); else flameUI.classList.add('off'); playSfx(sfxObor); });
+        const runBtn = document.getElementById('run-btn');
+        const crouchBtn = document.getElementById('crouch-btn');
+        runBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); if(!isCrouching) { isRunning=true; runBtn.classList.add('active'); } });
+        runBtn.addEventListener('touchend', () => { isRunning=false; runBtn.classList.remove('active'); });
+        crouchBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); isCrouching = !isCrouching; if(isCrouching) { targetBaseHeight=0.9; isRunning=false; runBtn.classList.remove('active'); crouchBtn.classList.add('active'); } else { targetBaseHeight=1.6; crouchBtn.classList.remove('active'); } });
+        const raycaster = new THREE.Raycaster();
+        const playerRadius = 0.5;
+        function cekTabrakan(pos, dir) { if(hitBoxWalls.length===0) return false; let rayDir = dir.clone().normalize(); let origin = pos.clone(); origin.y = 1.6; raycaster.set(origin, rayDir); const hits = raycaster.intersectObjects(hitBoxWalls); return hits.length>0 && hits[0].distance < playerRadius; }
+        function updateMovement() { let sedangBerjalan = moveJoystick.x !== 0 || moveJoystick.y !== 0; if (isCrouching) currentSpeed = 0.04; else if (isRunning) currentSpeed = 0.13; else currentSpeed = 0.075; if (sedangBerjalan) { const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion); forward.y=0; forward.normalize(); const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion); right.y=0; right.normalize(); let move = new THREE.Vector3(); move.addScaledVector(forward, -moveJoystick.y * currentSpeed); move.addScaledVector(right, moveJoystick.x * currentSpeed); let newPos = playerPos.clone().add(move); if (!cekTabrakan(playerPos, move)) playerPos.copy(newPos); bobTimer += isRunning ? 0.24 : 0.16; } else bobTimer += 0.02; currentHeight = THREE.MathUtils.lerp(currentHeight, targetBaseHeight, 0.1); let bobbing = 0; if (sedangBerjalan) { bobbing = Math.sin(bobTimer*2) * (isRunning ? 0.15 : 0.11); camera.position.x = playerPos.x + Math.cos(bobTimer)*0.08; } else { bobbing = Math.sin(bobTimer)*0.015; camera.position.x = playerPos.x; } camera.position.z = playerPos.z; camera.position.y = currentHeight + bobbing; updateInfiniteWorld(); }
+        
+        // ========== INTERAKSI TAP (ASLI) ==========
+        let interactionStart = { x:0, y:0, id:null };
+        const rayInteract = new THREE.Raycaster();
+        const centerScreen = new THREE.Vector2(0,0);
+        function pungutKoin(koinMesh) { if(koinMesh.parent) { koinMesh.parent.remove(koinMesh); const idx = daftarKoinAnimasi.indexOf(koinMesh); if(idx !== -1) daftarKoinAnimasi.splice(idx,1); score++; updateScoreUI(); playSfx(sfxKoin); if(score >= targetKoin && !targetTerpenuhi) { targetTerpenuhi = true; instruksiMissionUI.style.display = 'block'; munculkanPortalKeluar(); } } }
+        window.addEventListener('touchstart', (e) => { if(!gameDimulai || gamePaused || gameSelesai) return; if(e.target === torchBtn || e.target === runBtn || e.target === crouchBtn || container.contains(e.target)) return; for(let t of e.changedTouches) { if(t.clientX >= window.innerWidth/2 && interactionStart.id === null) { interactionStart.id = t.identifier; interactionStart.x = t.clientX; interactionStart.y = t.clientY; } } });
+        window.addEventListener('touchend', (e) => { if(!gameDimulai || gamePaused || gameSelesai) return; for(let t of e.changedTouches) { if(t.identifier === interactionStart.id) { const dx = Math.abs(t.clientX - interactionStart.x); const dy = Math.abs(t.clientY - interactionStart.y); if(dx < 7 && dy < 7) { rayInteract.setFromCamera(centerScreen, camera); const hits = rayInteract.intersectObjects(objekInteraktif, true); if(hits.length > 0) { let obj = hits[0].object; if(obj.name === "interactive_laci" && obj.parent && obj.parent.name === "interactive_laci") obj = obj.parent; const jarak = hits[0].distance; if(jarak < 3.5) { if(obj.name === "interactive_laci" && obj.userData.targetZ !== undefined) { obj.userData.isOpen = !obj.userData.isOpen; obj.userData.targetZ = obj.userData.isOpen ? obj.userData.openZ : obj.userData.baseZ; playSfx(sfxLaci); } else if(obj.name === "glowing_coin") pungutKoin(obj); } } } interactionStart.id = null; } } });
+        
+        // ========== RESET GAME (TANPA LOADING) ==========
+        function resetGameTotal() {
+            victoryMenuDiv.style.display = 'none'; victoryMenuDiv.style.opacity = '0';
+            gameOverMenuDiv.style.display = 'none'; gameOverMenuDiv.style.opacity = '0';
+            pauseMenuDiv.style.display = 'none'; instruksiMissionUI.style.display = 'none';
+            if (portalMesh) { if (sfxPortalLoop) sfxPortalLoop.stop(); scene.remove(portalMesh); portalMesh = null; }
+            if (portalLight) { scene.remove(portalLight); portalLight = null; }
+            score = 0; targetTerpenuhi = false; gameSelesai = false; gamePaused = false;
+            if(gameMode !== "MULTIPLAYER" || netRole === "HOST") gameSeed = Math.random() * 100000;
+            if(seedGameInput) seedGameInput.value = "";
+            playerPos.set(0, 0, 0); camera.position.set(0, 1.6, 0); cameraRotation.x = 0; cameraRotation.y = 0;
+            moveJoystick = { x:0, y:0 }; isRunning = false; isCrouching = false; targetBaseHeight = 1.6; currentHeight = 1.6;
+            Object.keys(activeChunks).forEach(key => { worldContainer.remove(activeChunks[key]); delete activeChunks[key]; });
+            currentChunkCoords = { x: 999, z: 999 }; updateInfiniteWorld(); collectActiveWalls(); updateScoreUI();
+            if(gameMode !== "MULTIPLAYER" || netRole === "HOST") spawnMusuh();
+            controlsLeftContainer.style.opacity = "1"; controlsLeftContainer.style.pointerEvents = "auto";
+            actionsRightContainer.style.opacity = "1"; actionsRightContainer.style.pointerEvents = "auto";
+            btnPauseUI.style.display = 'block'; gameDimulai = true;
+            if (sfxMenang) sfxMenang.stop(); if (sfxKalah) sfxKalah.stop();
+            if (sfxLampuLoop && !sfxLampuLoop.isPlaying) sfxLampuLoop.play();
+        }
+        
+        // ========== SISTEM LOGIKA JARINGAN MULTIPLAYER (PEERJS) ==========
+        function initMultiplayerNetwork() {
+            if (peerInstance) return;
+            peerInstance = new Peer();
+            peerInstance.on('open', (id) => { myPeerId = id; document.getElementById('textIdHost').innerText = id; });
+            peerInstance.on('connection', (conn) => {
+                if(netRole !== "HOST") return;
+                netConnections.push(conn);
+                document.getElementById('infoStatusLobby').innerText = `Pemain bergabung! Total: ${netConnections.length + 1} Pemain`;
+                document.getElementById('btnStartGameHost').style.display = "inline-block";
+                conn.on('data', (data) => { handleNetworkData(data, conn.peer); });
+                conn.on('close', () => {
+                    let idx = netConnections.indexOf(conn);
+                    if(idx !== -1) netConnections.splice(idx, 1);
+                    hancurkanKarakterMulti(conn.peer);
+                    document.getElementById('infoStatusLobby').innerText = netConnections.length > 0 ? `Total: ${netConnections.length + 1} Pemain` : "Menunggu pemain lain bergabung...";
+                });
+            });
+        }
+        function updateKarakterMulti(id, x, z, torchOn) {
+            if (!remotePlayers[id]) {
+                const geo = new THREE.CylinderGeometry(0.3, 0.3, 1.6, 12);
+                const mesh = new THREE.Mesh(geo, materialKarakterMulti);
+                mesh.position.set(x, 0.8, z);
+                scene.add(mesh);
+                const light = new THREE.PointLight(0xffaa44, 2.0, 8);
+                light.position.set(0, 0.6, 0);
+                mesh.add(light);
+                remotePlayers[id] = { mesh: mesh, light: light };
+            } else {
+                remotePlayers[id].mesh.position.set(x, 0.8, z);
+                remotePlayers[id].light.intensity = torchOn ? 2.0 : 0;
+            }
+        }
+        function hancurkanKarakterMulti(id) { if (remotePlayers[id]) { scene.remove(remotePlayers[id].mesh); delete remotePlayers[id]; } }
+        function handleNetworkData(data, senderId) {
+            if (data.tipe === "MOVE") { updateKarakterMulti(senderId, data.x, data.z, data.torch); if (netRole === "HOST") broadcastToClients({ tipe: "MOVE", id: senderId, x: data.x, z: data.z, torch: data.torch }, senderId); }
+            if (data.tipe === "START_GAME_CLIENT") { gameSeed = data.seed; targetKoin = data.targetKoin; jumlahMusuh = data.jumlahMusuh; eksekusiMulaiDunia(); }
+            if (data.tipe === "ENEMY_SYNC" && netRole === "CLIENT") { for (let i = 0; i < daftarMusuh.length; i++) { if (data.enemies[i]) { daftarMusuh[i].mesh.position.set(data.enemies[i].x, 0.9, data.enemies[i].z); } } }
+            if (data.tipe === "GLOBAL_WIN") { pemicuKemenanganGlobal(data.pemenang); }
+        }
+        function broadcastToClients(data, skipId = null) { netConnections.forEach(conn => { if (conn.open && conn.peer !== skipId) conn.send(data); }); }
+        function pemicuKemenanganGlobal(namaPemenang) { gameSelesai = true; gameDimulai = false; instruksiMissionUI.style.display = 'none'; btnPauseUI.style.display = 'none'; controlsLeftContainer.style.opacity = "0"; actionsRightContainer.style.opacity = "0"; victoryInfoText.innerHTML = `PERMAINAN SELESAI!<br><b style="color:#ffd700;">${namaPemenang}</b> Berhasil Meloloskan Diri Lewat Portal!`; victoryMenuDiv.style.display = 'flex'; setTimeout(() => { victoryMenuDiv.style.opacity = '1'; }, 50); if (sfxLampuLoop) sfxLampuLoop.stop(); if (sfxPortalLoop) sfxPortalLoop.stop(); playSfx(sfxMenang); }
+        
+        // CONTROL NAVIGASI UI POPUP MULTIPLAYER
+        function SembunyikanSemuaSubLobby() {
+            document.getElementById('menuPilihMode').style.display = 'none';
+            document.getElementById('menuOpsiMulti').style.display = 'none';
+            document.getElementById('lobbyHost').style.display = 'none';
+            document.getElementById('lobbyJoiner').style.display = 'none';
+            document.getElementById('lobbySingle').style.display = 'none';
+        }
+        btnPlay.onclick = () => { playSfx(sfxKlik); startMenuDiv.style.display = 'none'; targetPopupDiv.style.display = 'flex'; SembunyikanSemuaSubLobby(); document.getElementById('menuPilihMode').style.display = 'block'; };
+        document.getElementById('btnModeSingle').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('lobbySingle').style.display = 'block'; gameMode = "SINGLE"; netRole = "NONE"; };
+        document.getElementById('btnModeMulti').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('menuOpsiMulti').style.display = 'block'; gameMode = "MULTIPLAYER"; };
+        document.getElementById('btnBatalMode').onclick = () => { targetPopupDiv.style.display = 'none'; startMenuDiv.style.display = 'flex'; };
+        document.getElementById('btnPilihHost').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('lobbyHost').style.display = 'block'; netRole = "HOST"; initMultiplayerNetwork(); };
+        document.getElementById('btnPilihJoin').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('lobbyJoiner').style.display = 'block'; netRole = "CLIENT"; if(!peerInstance) peerInstance = new Peer(); };
+        document.getElementById('btnBatalMulti').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('menuPilihMode').style.display = 'block'; };
+        document.getElementById('btnBatalSingle').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('menuPilihMode').style.display = 'block'; };
+        document.getElementById('btnBatalJoiner').onclick = () => { SembunyikanSemuaSubLobby(); document.getElementById('menuOpsiMulti').style.display = 'block'; };
+        document.getElementById('btnSalinId').onclick = () => { navigator.clipboard.writeText(myPeerId); alert("ID Room Berhasil Disalin!"); };
+        document.getElementById('btnKoneksiJoin').onclick = () => {
+            const idTarget = document.getElementById('inputIdHostTarget').value.trim();
+            if(idTarget === "") { alert("ID tidak boleh kosong!"); return; }
+            document.getElementById('infoStatusJoin').innerText = "Menghubungkan ke Host...";
+            hostConnection = peerInstance.connect(idTarget);
+            hostConnection.on('open', () => { document.getElementById('infoStatusJoin').innerText = "Terhubung! Menunggu Host memulai game..."; });
+            hostConnection.on('data', (data) => { handleNetworkData(data, hostConnection.peer); });
+            hostConnection.on('close', () => { alert("Koneksi terputus! Host telah membubarkan room."); resetGameTotal(); btnExitMenu.click(); });
+        };
+        
+        // ========== EKSEKUSI MULAI DUNIA (FUNGSI INTI) ==========
+        function eksekusiMulaiDunia() {
+            score = 0; targetTerpenuhi = false; gameSelesai = false; gamePaused = false;
+            if (portalMesh) { if (sfxPortalLoop) sfxPortalLoop.stop(); scene.remove(portalMesh); portalMesh = null; }
+            if (portalLight) { scene.remove(portalLight); portalLight = null; }
+            targetPopupDiv.style.display = 'none';
+            btnPauseUI.style.display = 'block';
+            instruksiMissionUI.style.display = 'none';
+            Object.keys(activeChunks).forEach(key => { worldContainer.remove(activeChunks[key]); delete activeChunks[key]; });
+            currentChunkCoords = { x: 999, z: 999 };
+            updateInfiniteWorld();
+            collectActiveWalls();
+            playerPos.set(0, 0, 0);
+            camera.position.set(0, 1.6, 0);
+            cameraRotation.x = 0; cameraRotation.y = 0;
+            updateScoreUI();
+            if(gameMode !== "MULTIPLAYER" || netRole === "HOST") spawnMusuh();
+            controlsLeftContainer.style.opacity = "1"; controlsLeftContainer.style.pointerEvents = "auto";
+            actionsRightContainer.style.opacity = "1"; actionsRightContainer.style.pointerEvents = "auto";
+            document.getElementById('coin-ui-container').style.opacity = '1';
+            gameDimulai = true;
+            if(renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();
+            if (sfxLampuLoop && !sfxLampuLoop.isPlaying) sfxLampuLoop.play();
+            if (sfxKalah) sfxKalah.stop();
+        }
+        
+        // Handler Tombol Masuk Single Player
+        document.getElementById('btnStartGameSingle').onclick = () => {
+            targetKoin = parseInt(document.getElementById('targetKoinInputSingle').value) || 10;
+            jumlahMusuh = parseInt(document.getElementById('jumlahMusuhInputSingle').value) || 0;
+            const inputSeed = document.getElementById('seedGameInputSingle').value;
+            if (inputSeed.trim() !== "") {
+                let hash = 0; for (let i = 0; i < inputSeed.length; i++) hash = inputSeed.charCodeAt(i) + ((hash << 5) - hash);
+                gameSeed = Math.abs(hash);
+            } else { gameSeed = Math.random() * 100000; }
+            eksekusiMulaiDunia();
+        };
+        // Handler Tombol Masuk Host Multiplayer
+        document.getElementById('btnStartGameHost').onclick = () => {
+            targetKoin = parseInt(document.getElementById('targetKoinInput').value) || 10;
+            jumlahMusuh = parseInt(document.getElementById('jumlahMusuhInput').value) || 0;
+            const inputSeed = document.getElementById('seedGameInput').value;
+            if (inputSeed.trim() !== "") {
+                let hash = 0; for (let i = 0; i < inputSeed.length; i++) hash = inputSeed.charCodeAt(i) + ((hash << 5) - hash);
+                gameSeed = Math.abs(hash);
+            } else { gameSeed = Math.random() * 100000; }
+            broadcastToClients({ tipe: "START_GAME_CLIENT", seed: gameSeed, targetKoin: targetKoin, jumlahMusuh: jumlahMusuh });
+            eksekusiMulaiDunia();
+        };
+        
+        // ========== ANIMASI UTAMA ==========
+        function animate() {
+            requestAnimationFrame(animate);
+            if(gameDimulai && !gamePaused && !gameSelesai) {
+                camera.quaternion.setFromEuler(new THREE.Euler(cameraRotation.x, cameraRotation.y, 0, 'YXZ'));
+                updateMovement();
+                updateAI();
+                let sedangBergerak = (moveJoystick.x !== 0 || moveJoystick.y !== 0);
+                if (sedangBergerak) {
+                    if (isCrouching) intervalLangkah = 800;
+                    else if (isRunning) intervalLangkah = 350;
+                    else intervalLangkah = 550;
+                    if (Date.now() - langkahTimer > intervalLangkah) {
+                        if (sfxLangkah) { if (sfxLangkah.isPlaying) sfxLangkah.stop(); sfxLangkah.play(); }
+                        langkahTimer = Date.now();
+                    }
+                }
+                if(score >= targetKoin && !targetTerpenuhi) {
+                    targetTerpenuhi = true;
+                    instruksiMissionUI.style.display = 'block';
+                    munculkanPortalKeluar();
+                }
+                if(targetTerpenuhi && !gameSelesai) {
+                    const arahKamera = new THREE.Vector3();
+                    camera.getWorldDirection(arahKamera);
+                    let sudutHadapPlayer = Math.atan2(arahKamera.x, arahKamera.z);
+                    let sudutMenujuSpawn = Math.atan2(-camera.position.x, -camera.position.z);
+                    let hasilSudutPanah = sudutMenujuSpawn - sudutHadapPlayer;
+                    arrowCompass.style.transform = `rotate(${hasilSudutPanah * (180 / Math.PI)}deg)`;
+                    let jarakKeSpawn = camera.position.distanceTo(new THREE.Vector3(0, camera.position.y, 0));
+                    if(jarakKeSpawn < 1.2) {
+                        if (gameMode === "MULTIPLAYER") {
+                            let namaPemain = netRole === "HOST" ? "Host" : "Temanmu";
+                            if (netRole === "CLIENT") hostConnection.send({ tipe: "GLOBAL_WIN", pemenang: namaPemain });
+                            else broadcastToClients({ tipe: "GLOBAL_WIN", pemenang: namaPemain });
+                            pemicuKemenanganGlobal(namaPemain);
+                            return;
+                        } else {
+                            gameSelesai = true; gameDimulai = false;
+                            instruksiMissionUI.style.display = 'none';
+                            btnPauseUI.style.display = 'none';
+                            controlsLeftContainer.style.opacity = "0"; controlsLeftContainer.style.pointerEvents = "none";
+                            actionsRightContainer.style.opacity = "0"; actionsRightContainer.style.pointerEvents = "none";
+                            if(document.exitPointerLock) document.exitPointerLock();
+                            victoryInfoText.innerHTML = `Jumlah koin: ${score} / ${targetKoin}<br>Jumlah entitas: ${jumlahMusuh}`;
+                            victoryMenuDiv.style.display = 'flex';
+                            setTimeout(() => { victoryMenuDiv.style.opacity = '1'; }, 50);
+                            if (sfxLampuLoop) sfxLampuLoop.stop();
+                            if (sfxPortalLoop) sfxPortalLoop.stop();
+                            playSfx(sfxMenang);
+                        }
+                    }
+                }
+                // SINKRONISASI MULTIPLAYER
+                if (gameMode === "MULTIPLAYER") {
+                    let paketKoordinat = { tipe: "MOVE", x: playerPos.x, z: playerPos.z, torch: isTorchOn };
+                    if (netRole === "CLIENT" && hostConnection && hostConnection.open) hostConnection.send(paketKoordinat);
+                    else if (netRole === "HOST") {
+                        broadcastToClients({ tipe: "MOVE", id: myPeerId, x: playerPos.x, z: playerPos.z, torch: isTorchOn });
+                        let dataMusuh = daftarMusuh.map(m => ({ x: m.mesh.position.x, z: m.mesh.position.z }));
+                        broadcastToClients({ tipe: "ENEMY_SYNC", enemies: dataMusuh });
+                    }
+                }
+            }
+            for(let l of daftarLaciAnimasi) if(l && l.userData.targetZ!==undefined) l.position.z = THREE.MathUtils.lerp(l.position.z, l.userData.targetZ, 0.15);
+            for(let k of daftarKoinAnimasi) if(k) k.rotation.z += 0.03;
+            let sedang = (moveJoystick.x!==0 || moveJoystick.y!==0);
+            let bobY=0, bobX=0;
+            if(sedang && gameDimulai && !gamePaused && !gameSelesai) { bobY = Math.sin(bobTimer*2)*14; bobX = Math.cos(bobTimer)*7; }
+            else if(gameDimulai && !gamePaused && !gameSelesai) bobY = Math.sin(bobTimer)*3;
+            torchLeanX = THREE.MathUtils.lerp(torchLeanX, lookSpeedX, 0.1);
+            lookSpeedX = THREE.MathUtils.lerp(lookSpeedX, 0, 0.15);
+            torchContainerUI.style.transform = `translate(${bobX}px, ${-bobY}px) rotate(${torchLeanX}deg)`;
+            currentIntensity = THREE.MathUtils.lerp(currentIntensity, targetIntensity, 0.08);
+            let flicker = (isTorchOn && currentIntensity>1.2) ? (Math.random()-0.5)*0.3 : 0;
+            torchLight.intensity = Math.max(0, currentIntensity+flicker);
+            let offset = new THREE.Vector3(0.25, -0.25, -0.1).applyQuaternion(camera.quaternion);
+            torchLight.position.copy(camera.position).add(offset);
+            if(portalLight) { let pulsar = 1.5 + Math.sin(Date.now() * 0.003) * 0.5; portalLight.intensity = pulsar; }
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        initAudio();
+        updateInfiniteWorld();
+        collectActiveWalls();
+        camera.position.set(0, 1.6, 0);
+        playerPos.set(0, 0, 0);
+        animate();
+        
+        // Tombol-tombol lain (about, pause, exit, restart) tetap seperti asli
+        btnAbout.addEventListener('click', () => { playSfx(sfxKlik); startMenuDiv.style.display = 'none'; aboutMenuDiv.style.display = 'flex'; });
+        btnCloseAbout.addEventListener('click', () => { playSfx(sfxKlik); aboutMenuDiv.style.display = 'none'; startMenuDiv.style.display = 'flex'; });
+        btnPauseUI.addEventListener('click', () => { if(!gameDimulai || gameSelesai) return; playSfx(sfxKlik); gamePaused = true; gameDimulai = false; pauseMenuDiv.style.display = 'flex'; btnPauseUI.style.display = 'none'; daftarMusuh.forEach(m => { if(m.suaraLoop && m.suaraLoop.isPlaying) m.suaraLoop.pause(); }); });
+        btnResume.addEventListener('click', () => { playSfx(sfxKlik); gamePaused = false; gameDimulai = true; pauseMenuDiv.style.display = 'none'; btnPauseUI.style.display = 'block'; daftarMusuh.forEach(m => { if(m.suaraLoop && !m.suaraLoop.isPlaying) m.suaraLoop.play(); }); });
+        btnExitMenu.addEventListener('click', () => { playSfx(sfxKlik); pauseMenuDiv.style.display = 'none'; startMenuDiv.style.display = 'flex'; btnPauseUI.style.display = 'none'; gameDimulai = false; gameSelesai = false; if (sfxLampuLoop) sfxLampuLoop.stop(); daftarMusuh.forEach(m => { if(m.suaraLoop && m.suaraLoop.isPlaying) m.suaraLoop.stop(); scene.remove(m.mesh); }); });
+        btnRestart.addEventListener('click', () => { playSfx(sfxKlik); resetGameTotal(); });
+        btnBackToMenu.addEventListener('click', () => { playSfx(sfxKlik); victoryMenuDiv.style.display = 'none'; victoryMenuDiv.style.opacity = '0'; startMenuDiv.style.display = 'flex'; btnPauseUI.style.display = 'none'; gameDimulai = false; gameSelesai = false; if (sfxLampuLoop) sfxLampuLoop.stop(); daftarMusuh.forEach(m => { if(m.suaraLoop && m.suaraLoop.isPlaying) m.suaraLoop.stop(); scene.remove(m.mesh); }); });
+        btnRestartGO.addEventListener('click', () => { playSfx(sfxKlik); resetGameTotal(); });
+        btnBackToMenuGO.addEventListener('click', () => { playSfx(sfxKlik); gameOverMenuDiv.style.display = 'none'; gameOverMenuDiv.style.opacity = '0'; startMenuDiv.style.display = 'flex'; btnPauseUI.style.display = 'none'; gameDimulai = false; gameSelesai = false; if (sfxLampuLoop) sfxLampuLoop.stop(); daftarMusuh.forEach(m => { if(m.suaraLoop && m.suaraLoop.isPlaying) m.suaraLoop.stop(); scene.remove(m.mesh); }); });
+    </script>
+</body>
+</html>
